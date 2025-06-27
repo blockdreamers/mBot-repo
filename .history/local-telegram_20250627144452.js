@@ -6,7 +6,7 @@ const {
   getStats,
   getWrongAnswers,
   insertAnswer,
-} = require("./db");
+} = require("./netlify/functions/db");
 
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
@@ -27,7 +27,7 @@ bot.command("help", (ctx) => {
 });
 
 // ❓ /q or /q<number>
-bot.hears(/^\/q(\d*)$/, async (ctx) => {
+bot.command("q", async (ctx) => {
   console.log("🔵 /q 호출됨");
   const user_id = String(ctx.from.id);
   const msg = ctx.message.text;
@@ -65,22 +65,18 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 
   const timestamp = Date.now();
 
-  // ✅ 버튼 명시적으로 inline_keyboard 구조로 생성
-  const buttons = question.choices.map((_, i) =>
-    Markup.button.callback(
-      String.fromCharCode(65 + i),
-      `${question.id}|${i + 1}|${timestamp}`
-    )
+  // ✅ Python처럼 한 줄에 A~E 버튼 배열
+  const keyboard = Markup.inlineKeyboard(
+    question.choices.map((_, i) =>
+      Markup.button.callback(
+        String.fromCharCode(65 + i),
+        `${question.id}|${i + 1}|${timestamp}`
+      )
+    ),
+    { columns: 5 } // A B C D E 한 줄로!
   );
 
-  const keyboard = {
-    inline_keyboard: [buttons], // 한 줄로 A B C D E
-  };
-
-  console.log("✅ keyboard 구조:", JSON.stringify(keyboard, null, 2));
-
   await ctx.reply(text, {
-    parse_mode: "Markdown",
     reply_markup: keyboard,
   });
 });

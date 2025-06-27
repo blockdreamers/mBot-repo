@@ -8,6 +8,7 @@ const {
   insertAnswer,
 } = require("./db");
 
+
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
 // 🟢 /start

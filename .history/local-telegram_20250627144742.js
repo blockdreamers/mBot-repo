@@ -6,7 +6,7 @@ const {
   getStats,
   getWrongAnswers,
   insertAnswer,
-} = require("./db");
+} = require("./netlify/functions/db");
 
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
@@ -27,7 +27,7 @@ bot.command("help", (ctx) => {
 });
 
 // ❓ /q or /q<number>
-bot.hears(/^\/q(\d*)$/, async (ctx) => {
+bot.command("q", async (ctx) => {
   console.log("🔵 /q 호출됨");
   const user_id = String(ctx.from.id);
   const msg = ctx.message.text;

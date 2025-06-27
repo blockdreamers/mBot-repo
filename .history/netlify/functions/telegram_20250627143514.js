@@ -1,4 +1,3 @@
-require("dotenv").config();
 const { Telegraf, Markup } = require("telegraf");
 const {
   getUserAnsweredIds,
@@ -27,7 +26,7 @@ bot.command("help", (ctx) => {
 });
 
 // ❓ /q or /q<number>
-bot.hears(/^\/q(\d*)$/, async (ctx) => {
+bot.command("q", async (ctx) => {
   console.log("🔵 /q 호출됨");
   const user_id = String(ctx.from.id);
   const msg = ctx.message.text;
@@ -60,28 +59,21 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 
   let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
   question.choices.forEach((c, i) => {
-    text += `${String.fromCharCode(65 + i)}. ${c.trim()}\n`;
+    text += `${String.fromCharCode(65 + i)}. ${c}\n`;
   });
 
   const timestamp = Date.now();
 
-  // ✅ 버튼 명시적으로 inline_keyboard 구조로 생성
-  const buttons = question.choices.map((_, i) =>
-    Markup.button.callback(
-      String.fromCharCode(65 + i),
-      `${question.id}|${i + 1}|${timestamp}`
-    )
-  );
-
-  const keyboard = {
-    inline_keyboard: [buttons], // 한 줄로 A B C D E
-  };
-
-  console.log("✅ keyboard 구조:", JSON.stringify(keyboard, null, 2));
-
   await ctx.reply(text, {
-    parse_mode: "Markdown",
-    reply_markup: keyboard,
+    // ⚠️ parse_mode 제거해서 Markdown 파싱 오류 방지
+    reply_markup: Markup.inlineKeyboard(
+      question.choices.map((_, i) =>
+        Markup.button.callback(
+          String.fromCharCode(65 + i),
+          `${question.id}|${i + 1}|${timestamp}`
+        )
+      )
+    ),
   });
 });
 
@@ -103,9 +95,7 @@ bot.on("callback_query", async (ctx) => {
   // ✅ 로그 출력
   console.log(
     `🟢 유저 ${user_id} - 문제 ${q.question_number} 응답`,
-    `선택: ${String.fromCharCode(64 + selected)} / 정답: ${String.fromCharCode(
-      64 + q.answer
-    )}`,
+    `선택: ${String.fromCharCode(64 + selected)} / 정답: ${String.fromCharCode(64 + q.answer)}`,
     `(${is_correct ? "정답" : "오답"})`,
     `소요시간: ${elapsed}s`
   );
@@ -157,6 +147,17 @@ bot.command("stats", async (ctx) => {
   );
 });
 
-// ✅ 실행
-bot.launch();
-console.log("🚀 로컬 텔레그램 봇 실행됨. /q 입력해 테스트하세요.");
+// ✅ Netlify entry point
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, body: "Method Not Allowed" };
+  }
+  try {
+    const body = JSON.parse(event.body);
+    await bot.handleUpdate(body);
+    return { statusCode: 200, body: "OK" };
+  } catch (e) {
+    console.error("❌ handleUpdate error:", e);
+    return { statusCode: 500, body: "Internal Server Error" };
+  }
+};
