@@ -1,4 +1,3 @@
-// netlify/functions/telegram.js
 const { Telegraf, Markup } = require("telegraf");
 const {
   getUserAnsweredIds,
@@ -37,14 +36,20 @@ bot.command("q", async (ctx) => {
   let question;
   if (msg.length > 2) {
     const num = parseInt(msg.slice(2));
-    question = questions.find((q) => q.question_number === num);
-    if (!question) return ctx.reply(`${num}번 문제를 찾을 수 없습니다.`);
+    question = questions.find((q) => Number(q.question_number) === num);
+    if (!question) {
+      console.log(`❌ ${num}번 문제 없음`);
+      return ctx.reply(`${num}번 문제를 찾을 수 없습니다.`);
+    }
   } else {
     question = questions.find((q) => !answeredIds.includes(q.id));
-    if (!question) return ctx.reply("👏 모든 문제를 푸셨습니다!");
+    if (!question) {
+      console.log(`✅ ${user_id} - 모든 문제 풀이 완료`);
+      return ctx.reply("👏 모든 문제를 푸셨습니다!");
+    }
   }
 
-  console.log(`🟡 문제 ${question.question_number} 전송`);
+  console.log(`🟡 ${user_id} - 문제 ${question.question_number} 전송`);
 
   let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
   question.choices.forEach((c, i) => {
@@ -81,6 +86,14 @@ bot.on("callback_query", async (ctx) => {
   const is_correct = selected === q.answer;
   const elapsed = Math.round((submitted - start) / 1000);
 
+  // ✅ 로그 출력
+  console.log(
+    `🟢 유저 ${user_id} - 문제 ${q.question_number} 응답`,
+    `선택: ${String.fromCharCode(64 + selected)} / 정답: ${String.fromCharCode(64 + q.answer)}`,
+    `(${is_correct ? "정답" : "오답"})`,
+    `소요시간: ${elapsed}s`
+  );
+
   await insertAnswer({
     user_id,
     question_id: q.id,
@@ -94,10 +107,6 @@ bot.on("callback_query", async (ctx) => {
   const stats = await getStats(user_id);
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
-
-  console.log(
-    `🟢 문제 ${q.question_number} 답변 완료 / 정답여부: ${is_correct}`
-  );
 
   await ctx.editMessageText(
     `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(
@@ -113,6 +122,7 @@ bot.on("callback_query", async (ctx) => {
 // ❌ /wrong
 bot.command("wrong", async (ctx) => {
   const user_id = String(ctx.from.id);
+  console.log(`📛 유저 ${user_id} - 틀린 문제 요청`);
   const wrongs = await getWrongAnswers(user_id);
   if (!wrongs.length) return ctx.reply("🥳 틀린 문제가 없습니다!");
   ctx.reply("❌ 틀린 문제 목록:\n" + wrongs.map((n) => `문제 ${n}`).join("\n"));
@@ -122,6 +132,7 @@ bot.command("wrong", async (ctx) => {
 bot.command("stats", async (ctx) => {
   const user_id = String(ctx.from.id);
   const { total, correct } = await getStats(user_id);
+  console.log(`📈 유저 ${user_id} - stats 요청 (${correct}/${total})`);
   if (total === 0) return ctx.reply("아직 문제를 푼 기록이 없습니다.");
   ctx.reply(
     `✅ 맞은 문제: ${correct}/${total} (${Math.round(
