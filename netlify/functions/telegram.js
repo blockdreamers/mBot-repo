@@ -1,3 +1,9 @@
+// ✅ 환경 설정
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+  console.log("🌱 .env 환경변수 로드됨 (로컬 개발 환경)");
+}
+
 const { Telegraf, Markup } = require("telegraf");
 const {
   getUserAnsweredIds,
@@ -69,7 +75,6 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 
   if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
 
-  // ✅ 디버깅용 로그
   console.log("🆕 출제 문제:", {
     id: question.id,
     number: question.question_number,
@@ -97,7 +102,6 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 // 🔘 버튼 응답 처리
 bot.on("callback_query", async (ctx) => {
   const user_id = String(ctx.from.id);
-
   console.log("📩 수신된 콜백 데이터:", ctx.callbackQuery.data);
 
   if (!ctx.callbackQuery.data || ctx.callbackQuery.data.split("|").length !== 4) {
@@ -179,7 +183,7 @@ bot.command("stats", async (ctx) => {
   ctx.reply(`📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`);
 });
 
-// ✅ Netlify 함수 핸들러
+// ✅ Netlify 서버리스 함수용 핸들러
 module.exports.handler = async (event) => {
   if (event.httpMethod === "POST") {
     const body = JSON.parse(event.body);
@@ -195,3 +199,9 @@ module.exports.handler = async (event) => {
     };
   }
 };
+
+// ✅ 로컬 테스트 시 polling 으로 실행
+if (process.env.NODE_ENV !== "production" && !module.parent) {
+  bot.launch();
+  console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드)");
+}

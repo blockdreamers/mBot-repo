@@ -1,6 +1,12 @@
-// ✅ 로컬 개발환경에서만 .env 로드
+// ✅ 로컬 개발환경에서만 .env 로드 (.env가 루트에 있을 경우 정확한 경로 지정)
 if (process.env.NODE_ENV !== "production") {
-  require("dotenv").config();
+  const path = require("path");
+  require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
+}
+
+// ✅ 환경변수 누락 경고
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.warn("⚠️ 환경변수(SUPABASE_URL, SUPABASE_KEY)가 비어 있습니다. .env 확인 필요");
 }
 
 const { createClient } = require('@supabase/supabase-js');
@@ -47,7 +53,7 @@ async function getUserAnsweredIds(user_id, subjectType = null) {
 async function getAllQuestions() {
   const { data, error } = await supabase
     .from('questions')
-    .select('id, question_number, question, choices, type, answer, explanation') // id 포함
+    .select('id, question_number, question, choices, type, answer, explanation') // 반드시 id 포함
     .order('question_number', { ascending: true });
 
   if (error) {
