@@ -5,7 +5,7 @@ const {
   getStats,
   getWrongAnswers,
   insertAnswer,
-} = require("./db");
+} = require("./db"); // ✅ 경로 수정
 
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
@@ -85,26 +85,15 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 
 // 🔘 버튼 응답 처리
 bot.on("callback_query", async (ctx) => {
-  const user_id = String(ctx.from.id);
   const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
   const selected = parseInt(selectedStr);
   const start = parseInt(startStr);
   const submitted = Date.now();
-
-  console.log("📩 Callback data received:", ctx.callbackQuery.data);
-  console.log("🧪 qid =", qid);
+  const user_id = String(ctx.from.id);
 
   const questions = (await getAllQuestions()).filter((q) => q.type === subject);
-  const all_ids = questions.map((q) => q.id.toString());
-  console.log("🔍 available question ids:", all_ids);
-
   const q = questions.find((q) => q.id.toString() === qid);
-  console.log("🔎 찾은 문제:", q);
-
-  if (!q) {
-    console.error("❌ 질문 ID 일치 실패", { qid, all_ids });
-    return ctx.answerCbQuery("❌ 문제 정보를 불러올 수 없습니다. 관리자에게 문의해주세요.");
-  }
+  if (!q) return ctx.answerCbQuery("문제 정보를 찾을 수 없습니다.");
 
   const is_correct = selected === q.answer;
   const elapsed = Math.round((submitted - start) / 1000);
@@ -156,6 +145,7 @@ bot.command("stats", async (ctx) => {
   const percent = Math.round((correct / total) * 100);
   ctx.reply(`📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`);
 });
+
 
 // ✅ Netlify 함수 핸들러
 module.exports.handler = async (event) => {
