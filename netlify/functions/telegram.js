@@ -48,9 +48,14 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
   const msg = ctx.message.text;
 
   const answeredIds = await getUserAnsweredIds(user_id, currentSubject);
-  const questions = (await getAllQuestions()).filter(
+  const allQuestions = await getAllQuestions();
+
+  const questions = allQuestions.filter(
     (q) => q.type.toLowerCase() === currentSubject.toLowerCase()
   );
+
+  console.log(`🧾 유저 ${user_id} 요청한 과목: ${currentSubject}`);
+  console.log(`📚 총 ${questions.length}개의 ${currentSubject} 문제 중에서 선택`);
 
   let question;
   if (msg.length > 2) {
@@ -64,18 +69,24 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 
   if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
 
+  // ✅ 디버깅용 로그
+  console.log("🆕 출제 문제:", {
+    id: question.id,
+    number: question.question_number,
+    type: question.type,
+  });
+
   let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
   question.choices.forEach((c, i) => {
     text += `${String.fromCharCode(65 + i)}. ${c.trim()}\n`;
   });
 
   const timestamp = Date.now();
-  const buttons = question.choices.map((_, i) =>
-    Markup.button.callback(
-      String.fromCharCode(65 + i),
-      `${question.id}|${i + 1}|${timestamp}|${currentSubject}`
-    )
-  );
+  const buttons = question.choices.map((_, i) => {
+    const payload = `${question.id}|${i + 1}|${timestamp}|${currentSubject}`;
+    console.log(`📤 버튼 생성 → ${String.fromCharCode(65 + i)} = ${payload}`);
+    return Markup.button.callback(String.fromCharCode(65 + i), payload);
+  });
 
   await ctx.reply(text, {
     parse_mode: "Markdown",
@@ -86,24 +97,35 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 // 🔘 버튼 응답 처리
 bot.on("callback_query", async (ctx) => {
   const user_id = String(ctx.from.id);
+
+  console.log("📩 수신된 콜백 데이터:", ctx.callbackQuery.data);
+
+  if (!ctx.callbackQuery.data || ctx.callbackQuery.data.split("|").length !== 4) {
+    console.error("❌ 잘못된 콜백 데이터 형식:", ctx.callbackQuery.data);
+    return ctx.answerCbQuery("❌ 잘못된 응답 형식입니다.");
+  }
+
   const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
   const selected = parseInt(selectedStr);
   const start = parseInt(startStr);
   const submitted = Date.now();
 
-  console.log("📩 Callback data received:", ctx.callbackQuery.data);
-  console.log("🧪 qid =", qid);
+  console.log("🧪 파싱된 값:", { qid, selected, start, subject });
 
-  const questions = (await getAllQuestions()).filter((q) => q.type.toLowerCase() === subject.toLowerCase());
-  const all_ids = questions.map((q) => q.id.toString());
-  console.log("🔍 available question ids:", all_ids);
+  const allQuestions = await getAllQuestions();
+  const questions = allQuestions.filter(
+    (q) => q.type.toLowerCase() === subject.toLowerCase()
+  );
+
+  const availableIds = questions.map((q) => q.id.toString());
+  console.log("📚 매칭 시도 중인 ID 목록:", availableIds);
 
   const q = questions.find((q) => q.id.toString() === qid);
-  console.log("🔎 찾은 문제:", q);
+  console.log("🔍 최종 매칭된 문제:", q || "❌ 매칭 실패");
 
   if (!q) {
-    console.error("❌ 질문 ID 일치 실패", { qid, all_ids });
-    return ctx.answerCbQuery("❌ 문제 정보를 불러올 수 없습니다. 관리자에게 문의해주세요.");
+    console.error("❌ 질문 ID 매칭 실패", { qid, availableIds });
+    return ctx.answerCbQuery("❌ 문제 정보를 불러올 수 없습니다.");
   }
 
   const is_correct = selected === q.answer;
