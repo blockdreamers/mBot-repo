@@ -49,7 +49,13 @@ bot.command("q", async (ctx) => {
     }
   }
 
-  console.log(`🟡 ${user_id} - 문제 ${question.question_number} 전송`);
+  console.log(`🟡 유저 ${user_id} - 문제 ${question.question_number} 전송`);
+  console.log("✅ choices:", question.choices);
+
+  if (!Array.isArray(question.choices) || question.choices.length === 0) {
+    console.error(`❌ 보기 배열 오류 - question.choices =`, question.choices);
+    return ctx.reply("❌ 보기 항목을 불러올 수 없습니다.");
+  }
 
   let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
   question.choices.forEach((c, i) => {
@@ -59,7 +65,7 @@ bot.command("q", async (ctx) => {
   const timestamp = Date.now();
 
   await ctx.reply(text, {
-    parse_mode: "Markdown",
+    // ⚠️ parse_mode 제거해서 Markdown 파싱 오류 방지
     reply_markup: Markup.inlineKeyboard(
       question.choices.map((_, i) =>
         Markup.button.callback(
