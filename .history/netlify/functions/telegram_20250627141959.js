@@ -56,13 +56,13 @@ bot.command("q", async (ctx) => {
   await ctx.reply(text, {
     parse_mode: "Markdown",
     reply_markup: Markup.inlineKeyboard(
-      question.choices.map((_, i) =>
-        Markup.button.callback(
-          String.fromCharCode(65 + i),
-          `${question.id}|${i + 1}|${timestamp}`
-        )
-      )
-    ),
+  question.choices.map((_, i) =>
+    Markup.button.callback(
+      String.fromCharCode(65 + i),
+      `${question.id}|${i + 1}|${timestamp}`
+    )
+  )
+)
   });
 });
 
