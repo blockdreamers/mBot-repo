@@ -43,11 +43,11 @@ async function getUserAnsweredIds(user_id, subjectType = null) {
   return data.map(row => row.question_id);
 }
 
-// ✅ 전체 문제 리스트 (정렬 포함)
+// ✅ 전체 문제 리스트 (정렬 포함, id 필드 명시)
 async function getAllQuestions() {
   const { data, error } = await supabase
     .from('questions')
-    .select('*')
+    .select('id, question_number, question, choices, type, answer, explanation') // id 포함
     .order('question_number', { ascending: true });
 
   if (error) {
