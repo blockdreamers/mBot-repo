@@ -10,8 +10,6 @@ const {
   insertAnswer,
 } = require("./netlify/functions/local-db");
 
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
-
 // 🧠 유저별 과목 세션 저장
 const userSubjects = {}; // user_id: "math" | "cr" | ...
 
@@ -24,6 +22,8 @@ SUBJECT_TYPES.forEach((type) => {
     ctx.reply(`✅ 현재 과목이 [${type.toUpperCase()}]로 설정되었습니다.`);
   });
 });
+
+
 
 // 🟢 /start
 bot.start((ctx) => {
@@ -52,9 +52,7 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
   const msg = ctx.message.text;
 
   const answeredIds = await getUserAnsweredIds(user_id, currentSubject);
-  const questions = (await getAllQuestions()).filter(
-    (q) => q.type.toLowerCase() === currentSubject.toLowerCase()
-  );
+  const questions = (await getAllQuestions()).filter((q) => q.type === currentSubject);
 
   let question;
   if (msg.length > 2) {
@@ -62,20 +60,9 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
     question = questions.find((q) => Number(q.question_number) === num);
     if (!question) return ctx.reply(`${num}번 문제를 찾을 수 없습니다.`);
   } else {
-    // ✅ UUID 문자형 비교를 위한 Set 변환
-    const answeredIdSet = new Set(answeredIds.map((id) => id.toString()));
-    console.log("🧾 answeredIdSet =", [...answeredIdSet]);
-
-    question = questions.find((q) => {
-      const isAnswered = answeredIdSet.has(q.id.toString());
-      if (isAnswered) {
-        console.log(`⚠️ ${q.question_number}번 (${q.id})는 이미 풀이됨`);
-      }
-      return !isAnswered;
-    });
+    question = questions.find((q) => !answeredIds.includes(q.id));
+    if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
   }
-
-  if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
 
   let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
   question.choices.forEach((c, i) => {
@@ -95,14 +82,13 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
     reply_markup: { inline_keyboard: [buttons] },
   });
 
-  console.log(
-    `📨 유저 ${user_id}에게 [${currentSubject.toUpperCase()}] ${question.question_number}번 전송`
-  );
+  console.log(`📨 유저 ${user_id}에게 [${currentSubject.toUpperCase()}] ${question.question_number}번 전송`);
 });
 
 // 🔘 버튼 응답 처리
 bot.on("callback_query", async (ctx) => {
-  const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
+  const [qidStr, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
+  const qid = parseInt(qidStr);
   const selected = parseInt(selectedStr);
   const start = parseInt(startStr);
   const submitted = Date.now();
@@ -145,9 +131,7 @@ bot.command("wrong", async (ctx) => {
   const wrongs = await getWrongAnswers(user_id, subject);
   if (!wrongs.length) return ctx.reply("🥳 틀린 문제가 없습니다!");
 
-  const text =
-    `❌ [${subject.toUpperCase()}] 틀린 문제:\n` +
-    wrongs.map((n) => `문제 ${n}`).join("\n");
+  const text = `❌ [${subject.toUpperCase()}] 틀린 문제:\n` + wrongs.map((n) => `문제 ${n}`).join("\n");
   ctx.reply(text);
 });
 
@@ -156,8 +140,7 @@ bot.command("stats", async (ctx) => {
   const user_id = String(ctx.from.id);
   const subject = userSubjects[user_id] || "cr";
   const { total, correct } = await getStats(user_id, subject);
-  if (total === 0)
-    return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
+  if (total === 0) return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
 
   const percent = Math.round((correct / total) * 100);
   ctx.reply(`📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`);

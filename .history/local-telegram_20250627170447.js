@@ -29,9 +29,9 @@ SUBJECT_TYPES.forEach((type) => {
 bot.start((ctx) => {
   ctx.reply(
     `안녕하세요! GMAT 문제풀이 봇입니다.\n\n🧭 과목 설정:\n` +
-    `/cr, /math, /rc, /di\n\n📌 문제 명령어:\n` +
-    `/q - 다음 문제\n/q123 - 특정 문제 번호\n` +
-    `/wrong - 틀린 문제 목록\n/stats - 통계 보기\n/help - 전체 명령어`
+      `/cr, /math, /rc, /di\n\n📌 문제 명령어:\n` +
+      `/q - 다음 문제\n/q123 - 특정 문제 번호\n` +
+      `/wrong - 틀린 문제 목록\n/stats - 통계 보기\n/help - 전체 명령어`
   );
 });
 
@@ -39,9 +39,9 @@ bot.start((ctx) => {
 bot.command("help", (ctx) => {
   ctx.reply(
     `📚 사용 가능한 명령어:\n` +
-    `/cr, /math, /rc, /di - 과목 선택\n` +
-    `/q - 다음 문제\n/q123 - 특정 번호 문제 보기\n` +
-    `/wrong - 내가 틀린 문제 보기\n/stats - 과목별 통계 보기`
+      `/cr, /math, /rc, /di - 과목 선택\n` +
+      `/q - 다음 문제\n/q123 - 특정 번호 문제 보기\n` +
+      `/wrong - 내가 틀린 문제 보기\n/stats - 과목별 통계 보기`
   );
 });
 
@@ -62,20 +62,13 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
     question = questions.find((q) => Number(q.question_number) === num);
     if (!question) return ctx.reply(`${num}번 문제를 찾을 수 없습니다.`);
   } else {
-    // ✅ UUID 문자형 비교를 위한 Set 변환
+    // 수정 코드 (✅ UUID 문자열 비교 확실하게 됨)
     const answeredIdSet = new Set(answeredIds.map((id) => id.toString()));
-    console.log("🧾 answeredIdSet =", [...answeredIdSet]);
+    console.log("🧾 answeredIdSet =", [...answeredIdSet]); // 🔻 추가
+    question = questions.find((q) => !answeredIdSet.has(q.id.toString()));
 
-    question = questions.find((q) => {
-      const isAnswered = answeredIdSet.has(q.id.toString());
-      if (isAnswered) {
-        console.log(`⚠️ ${q.question_number}번 (${q.id})는 이미 풀이됨`);
-      }
-      return !isAnswered;
-    });
+    if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
   }
-
-  if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
 
   let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
   question.choices.forEach((c, i) => {
@@ -96,21 +89,30 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
   });
 
   console.log(
-    `📨 유저 ${user_id}에게 [${currentSubject.toUpperCase()}] ${question.question_number}번 전송`
+    `📨 유저 ${user_id}에게 [${currentSubject.toUpperCase()}] ${
+      question.question_number
+    }번 전송`
   );
 });
 
 // 🔘 버튼 응답 처리
 bot.on("callback_query", async (ctx) => {
-  const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
+  const [qid, selectedStr, startStr, subject] =
+    ctx.callbackQuery.data.split("|");
   const selected = parseInt(selectedStr);
   const start = parseInt(startStr);
   const submitted = Date.now();
   const user_id = String(ctx.from.id);
 
-  const questions = (await getAllQuestions()).filter((q) => q.type === subject);
-  const q = questions.find((q) => q.id === qid);
-  if (!q) return ctx.answerCbQuery("문제 정보를 찾을 수 없습니다.");
+  const questions = (await getAllQuestions()).filter(
+    (q) => q.type.toLowerCase() === subject.toLowerCase()
+  );
+  const q = questions.find((q) => q.id.toString() === qid.toString());
+
+  if (!q) {
+    console.error(`❌ 문제를 찾을 수 없음: ${qid}`);
+    return ctx.answerCbQuery("문제 정보를 찾을 수 없습니다.");
+  }
 
   const is_correct = selected === q.answer;
   const elapsed = Math.round((submitted - start) / 1000);
@@ -130,9 +132,13 @@ bot.on("callback_query", async (ctx) => {
   const secs = elapsed % 60;
 
   await ctx.reply(
-    `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(64 + selected)}\n` +
-    `${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${q.explanation}\n\n` +
-    `⏱ 풀이 시간: ${mins}분 ${secs}초\n📊 현재 ${stats.total}문제 중 ${stats.correct}문제 정답`
+    `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(
+      64 + selected
+    )}\n` +
+      `${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${
+        q.explanation
+      }\n\n` +
+      `⏱ 풀이 시간: ${mins}분 ${secs}초\n📊 현재 ${stats.total}문제 중 ${stats.correct}문제 정답`
   );
 
   await ctx.answerCbQuery();
@@ -160,7 +166,9 @@ bot.command("stats", async (ctx) => {
     return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
 
   const percent = Math.round((correct / total) * 100);
-  ctx.reply(`📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`);
+  ctx.reply(
+    `📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`
+  );
 });
 
 // ✅ 로컬 실행 확인 로그
