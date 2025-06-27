@@ -1,8 +1,3 @@
-// ✅ 로컬 개발환경에서만 .env 로드
-if (process.env.NODE_ENV !== "production") {
-  require("dotenv").config();
-}
-
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
