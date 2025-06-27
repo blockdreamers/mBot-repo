@@ -19,6 +19,8 @@
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.50.2",
+    "dotenv": "^16.6.0",
     "telegraf": "^4.16.3"
   }
 }
+

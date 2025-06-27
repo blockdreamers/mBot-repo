@@ -6,7 +6,7 @@ const {
   getStats,
   getWrongAnswers,
   insertAnswer,
-} = require("./db");
+} = require("./netlify/functions/db");
 
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
