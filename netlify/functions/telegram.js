@@ -63,6 +63,8 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
     inline_keyboard: [buttons], // 한 줄로
   };
 
+  console.log(`📨 유저 ${user_id}에게 문제 ${question.question_number} 전송`);
+
   await ctx.reply(text, {
     parse_mode: "Markdown",
     reply_markup: keyboard,
@@ -79,7 +81,10 @@ bot.on("callback_query", async (ctx) => {
 
   const questions = await getAllQuestions();
   const q = questions.find((q) => q.id === qid);
-  if (!q) return ctx.answerCbQuery("문제 정보를 찾을 수 없습니다.");
+  if (!q) {
+    console.warn("⚠️ 문제 정보를 찾을 수 없음:", qid);
+    return ctx.answerCbQuery("문제 정보를 찾을 수 없습니다.");
+  }
 
   const is_correct = selected === q.answer;
   const elapsed = Math.round((submitted - start) / 1000);
@@ -98,7 +103,14 @@ bot.on("callback_query", async (ctx) => {
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
 
-  await ctx.editMessageText(
+  console.log(
+    `📝 유저 ${user_id} 문제 ${q.question_number} 응답: ${selected} (${
+      is_correct ? "정답" : "오답"
+    }), 시간: ${elapsed}s`
+  );
+
+  // ✅ editMessageText 대신 reply 로 새 메시지로 전송
+  await ctx.reply(
     `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(
       64 + selected
     )}\n${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${
@@ -107,26 +119,36 @@ bot.on("callback_query", async (ctx) => {
       stats.total
     }문제 풀이 완료)`
   );
+
+  await ctx.answerCbQuery(); // 버튼 클릭 완료 응답 (UI 피드백)
 });
 
 // ❌ /wrong
 bot.command("wrong", async (ctx) => {
   const user_id = String(ctx.from.id);
   const wrongs = await getWrongAnswers(user_id);
-  if (!wrongs.length) return ctx.reply("🥳 틀린 문제가 없습니다!");
-  ctx.reply("❌ 틀린 문제 목록:\n" + wrongs.map((n) => `문제 ${n}`).join("\n"));
+  if (!wrongs.length) {
+    console.log(`✅ 유저 ${user_id}는 틀린 문제 없음`);
+    return ctx.reply("🥳 틀린 문제가 없습니다!");
+  }
+
+  const text = "❌ 틀린 문제 목록:\n" + wrongs.map((n) => `문제 ${n}`).join("\n");
+  console.log(`❌ 유저 ${user_id} 틀린 문제:`, wrongs);
+  ctx.reply(text);
 });
 
 // 📊 /stats
 bot.command("stats", async (ctx) => {
   const user_id = String(ctx.from.id);
   const { total, correct } = await getStats(user_id);
-  if (total === 0) return ctx.reply("아직 문제를 푼 기록이 없습니다.");
-  ctx.reply(
-    `✅ 맞은 문제: ${correct}/${total} (${Math.round(
-      (correct / total) * 100
-    )}%)`
-  );
+  if (total === 0) {
+    console.log(`📊 유저 ${user_id} 아직 풀이 기록 없음`);
+    return ctx.reply("아직 문제를 푼 기록이 없습니다.");
+  }
+
+  const percent = Math.round((correct / total) * 100);
+  console.log(`📊 유저 ${user_id} 통계: ${correct}/${total} (${percent}%)`);
+  ctx.reply(`✅ 맞은 문제: ${correct}/${total} (${percent}%)`);
 });
 
 // 🌐 Netlify Webhook 함수
