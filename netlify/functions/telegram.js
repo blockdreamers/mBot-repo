@@ -94,7 +94,7 @@ bot.on("callback_query", async (ctx) => {
   console.log("📩 Callback data received:", ctx.callbackQuery.data);
   console.log("🧪 qid =", qid);
 
-  const questions = (await getAllQuestions()).filter((q) => q.type === subject);
+  const questions = (await getAllQuestions()).filter((q) => q.type.toLowerCase() === subject.toLowerCase());
   const all_ids = questions.map((q) => q.id.toString());
   console.log("🔍 available question ids:", all_ids);
 
