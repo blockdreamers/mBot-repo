@@ -83,9 +83,31 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
     type: question.type,
   });
 
-  let text = `*문제 ${question.question_number}:*\n${question.question}\n\n`;
+  function escapeMarkdown(text) {
+    return text
+      .replace(/_/g, "\\_")
+      .replace(/\*/g, "\\*")
+      .replace(/\[/g, "\\[")
+      .replace(/\]/g, "\\]")
+      .replace(/\(/g, "\\(")
+      .replace(/\)/g, "\\)")
+      .replace(/~/g, "\\~")
+      .replace(/`/g, "\\`")
+      .replace(/>/g, "\\>")
+      .replace(/#/g, "\\#")
+      .replace(/\+/g, "\\+")
+      .replace(/-/g, "\\-")
+      .replace(/=/g, "\\=")
+      .replace(/\|/g, "\\|")
+      .replace(/{/g, "\\{")
+      .replace(/}/g, "\\}");
+  }
+
+  let text = `*문제 ${question.question_number}:*\n${escapeMarkdown(
+    question.question
+  )}\n\n`;
   question.choices.forEach((c, i) => {
-    text += `${String.fromCharCode(65 + i)}. ${c.trim()}\n`;
+    text += `${String.fromCharCode(65 + i)}. ${escapeMarkdown(c.trim())}\n`;
   });
 
   const timestamp = Date.now();
@@ -106,16 +128,12 @@ bot.on("callback_query", async (ctx) => {
   const user_id = String(ctx.from.id);
   console.log("📩 수신된 콜백 데이터:", ctx.callbackQuery.data);
 
-  if (
-    !ctx.callbackQuery.data ||
-    ctx.callbackQuery.data.split("|").length !== 4
-  ) {
+  if (!ctx.callbackQuery.data || ctx.callbackQuery.data.split("|").length !== 4) {
     console.error("❌ 잘못된 콜백 데이터 형식:", ctx.callbackQuery.data);
     return ctx.answerCbQuery("❌ 잘못된 응답 형식입니다.");
   }
 
-  const [qid, selectedStr, startStr, subject] =
-    ctx.callbackQuery.data.split("|");
+  const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
   const selected = parseInt(selectedStr);
   const start = parseInt(startStr);
   const submitted = Date.now();
@@ -172,41 +190,87 @@ bot.on("callback_query", async (ctx) => {
 bot.command("wrong", async (ctx) => {
   const user_id = String(ctx.from.id);
   const subject = userSubjects[user_id] || "cr";
-  const wrongs = await getWrongAnswers(user_id, subject);
-  if (!wrongs.length) return ctx.reply("🥳 틀린 문제가 없습니다!");
 
-  const text =
-    `❌ [${subject.toUpperCase()}] 틀린 문제:\n` +
-    wrongs.map((n) => `문제 ${n}`).join("\n");
-  ctx.reply(text);
+  try {
+    const wrongs = await getWrongAnswers(user_id, subject);
+    console.log("[/wrong 디버깅] 반환된 목록:", wrongs);
+
+    if (!Array.isArray(wrongs)) {
+      console.error("❌ getWrongAnswers() 반환값이 배열이 아님:", wrongs);
+      return ctx.reply("⚠️ 틀린 문제 데이터를 불러오는 데 문제가 발생했습니다.");
+    }
+
+    if (wrongs.length === 0) {
+      return ctx.reply("🥳 틀린 문제가 없습니다!");
+    }
+
+    const text =
+      `❌ [${subject.toUpperCase()}] 틀린 문제:\n` +
+      wrongs.map((n) => `문제 ${n}`).join("\n");
+
+    ctx.reply(text);
+  } catch (err) {
+    console.error("❌ /wrong 처리 중 오류 발생:", err);
+    ctx.reply("⚠️ 틀린 문제 명령어 처리 중 문제가 발생했습니다.");
+  }
 });
 
 // 📊 /stats
 bot.command("stats", async (ctx) => {
   const user_id = String(ctx.from.id);
   const subject = userSubjects[user_id] || "cr";
-  const { total, correct } = await getStats(user_id, subject);
-  console.log("[/stats 디버깅]", { total, correct });
 
-  if (!total || total === 0) {
-    return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
+  try {
+    const stats = await getStats(user_id, subject);
+    console.log("[/stats 디버깅]", stats);
+
+    if (!stats || typeof stats !== "object") {
+      console.error("❌ getStats() 반환값이 객체가 아님:", stats);
+      return ctx.reply("⚠️ 통계 데이터를 불러오는 데 문제가 발생했습니다.");
+    }
+
+    const { total, correct } = stats;
+
+    if (typeof total !== "number" || typeof correct !== "number") {
+      console.error("❌ getStats() 내 숫자값이 유효하지 않음:", {
+        total,
+        correct,
+      });
+      return ctx.reply("⚠️ 통계 정보가 정확하지 않습니다.");
+    }
+
+    if (!total || total === 0) {
+      return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
+    }
+
+    const percent = Math.round((correct / total) * 100);
+    ctx.reply(
+      `📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`
+    );
+  } catch (err) {
+    console.error("❌ /stats 처리 중 오류 발생:", err);
+    ctx.reply("⚠️ 통계 명령어 처리 중 문제가 발생했습니다.");
   }
-
-  const percent = Math.round((correct / total) * 100);
-  ctx.reply(
-    `📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`
-  );
 });
 
 // ✅ Netlify 서버리스 함수용 핸들러
 module.exports.handler = async (event) => {
   if (event.httpMethod === "POST") {
-    const body = JSON.parse(event.body);
-    await bot.handleUpdate(body);
-    return {
-      statusCode: 200,
-      body: "",
-    };
+    try {
+      const body = JSON.parse(event.body);
+      console.log("📩 Webhook 요청 수신됨:", body);
+      await bot.handleUpdate(body);
+      return {
+        statusCode: 200,
+        body: "OK",
+      };
+    } catch (err) {
+      console.error("❌ Webhook 처리 중 오류 발생:", err.message);
+      return {
+        statusCode: 500,
+        body: "Internal Server Error: " + err.message,
+      };
+    }
   } else {
     return {
       statusCode: 405,
@@ -215,8 +279,10 @@ module.exports.handler = async (event) => {
   }
 };
 
-// ✅ 로컬 테스트 시 polling 으로 실행
-if (process.env.NODE_ENV !== "production" && !module.parent) {
+const IS_NETLIFY = !!process.env.NETLIFY || !!process.env.NETLIFY_DEV;
+const IS_LOCAL = !IS_NETLIFY;
+
+if (IS_LOCAL) {
   bot.launch();
   console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드)");
 }

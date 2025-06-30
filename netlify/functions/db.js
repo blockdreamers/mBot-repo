@@ -9,7 +9,7 @@ if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   console.warn("⚠️ 환경변수(SUPABASE_URL, SUPABASE_KEY)가 비어 있습니다. .env 확인 필요");
 }
 
-const { createClient } = require('@supabase/supabase-js');
+const { createClient } = require("@supabase/supabase-js");
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -22,42 +22,42 @@ async function getUserAnsweredIds(user_id, subjectType = null) {
 
   if (!subjectType) {
     const { data, error } = await supabase
-      .from('user_answers')
-      .select('question_id')
-      .eq('user_id', user_id);
+      .from("user_answers")
+      .select("question_id")
+      .eq("user_id", user_id);
 
     if (error) {
-      console.error('❌ Supabase fetch error (user_answers):', error);
+      console.error("❌ Supabase fetch error (user_answers):", error);
       return [];
     }
 
     console.log(`📦 ${data.length} answered questions (no subject filter)`);
-    return data.map(row => row.question_id);
+    return data.map((row) => row.question_id);
   }
 
-  const { data, error } = await supabase.rpc('get_answered_ids_by_type', {
+  const { data, error } = await supabase.rpc("get_answered_ids_by_type", {
     input_user_id: user_id,
     input_type: subjectType,
   });
 
   if (error) {
-    console.error('❌ Supabase fetch error (get_answered_ids_by_type):', error);
+    console.error("❌ Supabase fetch error (get_answered_ids_by_type):", error);
     return [];
   }
 
   console.log(`📦 ${data.length} answered questions for subject "${subjectType}"`);
-  return data.map(row => row.question_id);
+  return data.map((row) => row.question_id);
 }
 
 // ✅ 전체 문제 리스트 (정렬 포함, id 필드 명시)
 async function getAllQuestions() {
   const { data, error } = await supabase
-    .from('questions')
-    .select('id, question_number, question, choices, type, answer, explanation') // 반드시 id 포함
-    .order('question_number', { ascending: true });
+    .from("questions")
+    .select("id, question_number, question, choices, type, answer, explanation")
+    .order("question_number", { ascending: true });
 
   if (error) {
-    console.error('❌ Supabase fetch error (questions):', error);
+    console.error("❌ Supabase fetch error (questions):", error);
     return [];
   }
 
@@ -71,33 +71,33 @@ async function getStats(user_id, subjectType = null) {
 
   if (!subjectType) {
     const { data, error } = await supabase
-      .from('user_answers')
-      .select('is_correct')
-      .eq('user_id', user_id);
+      .from("user_answers")
+      .select("is_correct")
+      .eq("user_id", user_id);
 
     if (error) {
-      console.error('❌ Supabase stats fetch error:', error);
+      console.error("❌ Supabase stats fetch error:", error);
       return { total: 0, correct: 0 };
     }
 
     const total = data.length;
-    const correct = data.filter(r => r.is_correct).length;
+    const correct = data.filter((r) => r.is_correct).length;
     return { total, correct };
   }
 
-  const { data, error } = await supabase.rpc('get_stats_by_type', {
+  const { data, error } = await supabase.rpc("get_cr_stats", {
     input_user_id: user_id,
-    input_type: subjectType,
+    input_type: subjectType.toLowerCase(),
   });
 
   if (error) {
-    console.error('❌ Supabase stats fetch error by type:', error);
+    console.error("❌ Supabase stats fetch error (get_cr_stats):", error);
     return { total: 0, correct: 0 };
   }
 
-  const total = data.length;
-  const correct = data.filter(r => r.is_correct).length;
-  return { total, correct };
+  const result = data?.[0] ?? { total: 0, correct: 0 };
+  console.log(`[/stats 디버깅] 총 ${result.total}개 중 정답 ${result.correct}개`);
+  return result;
 }
 
 // ✅ 유저가 틀린 문제 번호 리스트
@@ -106,55 +106,53 @@ async function getWrongAnswers(user_id, subjectType = null) {
 
   if (!subjectType) {
     const { data: wrongs, error } = await supabase
-      .from('user_answers')
-      .select('question_id')
-      .eq('user_id', user_id)
-      .eq('is_correct', false);
+      .from("user_answers")
+      .select("question_id")
+      .eq("user_id", user_id)
+      .eq("is_correct", false);
 
     if (error) {
-      console.error('❌ Supabase wrongs fetch error:', error);
+      console.error("❌ Supabase wrongs fetch error:", error);
       return [];
     }
 
-    const ids = wrongs.map(r => r.question_id);
+    const ids = wrongs.map((r) => r.question_id);
 
     const { data: questions, error: qErr } = await supabase
-      .from('questions')
-      .select('question_number, id');
+      .from("questions")
+      .select("question_number, id");
 
     if (qErr) {
-      console.error('❌ Supabase questions fetch error:', qErr);
+      console.error("❌ Supabase questions fetch error:", qErr);
       return [];
     }
 
-    return questions
-      .filter(q => ids.includes(q.id))
-      .map(q => q.question_number);
+    return questions.filter((q) => ids.includes(q.id)).map((q) => q.question_number);
   }
 
-  const { data, error } = await supabase.rpc('get_wrong_question_numbers_by_type', {
+  const { data, error } = await supabase.rpc("get_wrong_question_numbers_by_type", {
     input_user_id: user_id,
     input_type: subjectType,
   });
 
   if (error) {
-    console.error('❌ Supabase wrongs fetch error by type:', error);
+    console.error("❌ Supabase wrongs fetch error by type:", error);
     return [];
   }
 
-  return data.map(r => r.question_number);
+  return data.map((r) => r.question_number);
 }
 
 // ✅ 유저 응답 삽입
 async function insertAnswer(answerData) {
-  const { error } = await supabase
-    .from('user_answers')
-    .insert(answerData);
+  const { error } = await supabase.from("user_answers").insert(answerData);
 
   if (error) {
-    console.error('❌ Insert error (user_answers):', error);
+    console.error("❌ Insert error (user_answers):", error);
   } else {
-    console.log(`📌 답안 기록됨: user_id=${answerData.user_id}, q=${answerData.question_id}, 정답여부=${answerData.is_correct}`);
+    console.log(
+      `📌 답안 기록됨: user_id=${answerData.user_id}, q=${answerData.question_id}, 정답여부=${answerData.is_correct}`
+    );
   }
 }
 
