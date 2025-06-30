@@ -31,9 +31,9 @@ SUBJECT_TYPES.forEach((type) => {
 bot.start((ctx) => {
   ctx.reply(
     `안녕하세요! GMAT 문제풀이 봇입니다.\n\n🧭 과목 설정:\n` +
-    `/cr, /math, /rc, /di\n\n📌 문제 명령어:\n` +
-    `/q - 다음 문제\n/q123 - 특정 문제 번호\n` +
-    `/wrong - 틀린 문제 목록\n/stats - 통계 보기\n/help - 전체 명령어`
+      `/cr, /math, /rc, /di\n\n📌 문제 명령어:\n` +
+      `/q - 다음 문제\n/q123 - 특정 문제 번호\n` +
+      `/wrong - 틀린 문제 목록\n/stats - 통계 보기\n/help - 전체 명령어`
   );
 });
 
@@ -41,9 +41,9 @@ bot.start((ctx) => {
 bot.command("help", (ctx) => {
   ctx.reply(
     `📚 사용 가능한 명령어:\n` +
-    `/cr, /math, /rc, /di - 과목 선택\n` +
-    `/q - 다음 문제\n/q123 - 특정 번호 문제 보기\n` +
-    `/wrong - 내가 틀린 문제 보기\n/stats - 과목별 통계 보기`
+      `/cr, /math, /rc, /di - 과목 선택\n` +
+      `/q - 다음 문제\n/q123 - 특정 번호 문제 보기\n` +
+      `/wrong - 내가 틀린 문제 보기\n/stats - 과목별 통계 보기`
   );
 });
 
@@ -61,7 +61,9 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
   );
 
   console.log(`🧾 유저 ${user_id} 요청한 과목: ${currentSubject}`);
-  console.log(`📚 총 ${questions.length}개의 ${currentSubject} 문제 중에서 선택`);
+  console.log(
+    `📚 총 ${questions.length}개의 ${currentSubject} 문제 중에서 선택`
+  );
 
   let question;
   if (msg.length > 2) {
@@ -104,12 +106,16 @@ bot.on("callback_query", async (ctx) => {
   const user_id = String(ctx.from.id);
   console.log("📩 수신된 콜백 데이터:", ctx.callbackQuery.data);
 
-  if (!ctx.callbackQuery.data || ctx.callbackQuery.data.split("|").length !== 4) {
+  if (
+    !ctx.callbackQuery.data ||
+    ctx.callbackQuery.data.split("|").length !== 4
+  ) {
     console.error("❌ 잘못된 콜백 데이터 형식:", ctx.callbackQuery.data);
     return ctx.answerCbQuery("❌ 잘못된 응답 형식입니다.");
   }
 
-  const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
+  const [qid, selectedStr, startStr, subject] =
+    ctx.callbackQuery.data.split("|");
   const selected = parseInt(selectedStr);
   const start = parseInt(startStr);
   const submitted = Date.now();
@@ -150,9 +156,13 @@ bot.on("callback_query", async (ctx) => {
   const secs = elapsed % 60;
 
   await ctx.reply(
-    `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(64 + selected)}\n` +
-    `${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${q.explanation}\n\n` +
-    `⏱ 풀이 시간: ${mins}분 ${secs}초\n📊 현재 ${stats.total}문제 중 ${stats.correct}문제 정답`
+    `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(
+      64 + selected
+    )}\n` +
+      `${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${
+        q.explanation
+      }\n\n` +
+      `⏱ 풀이 시간: ${mins}분 ${secs}초\n📊 현재 ${stats.total}문제 중 ${stats.correct}문제 정답`
   );
 
   await ctx.answerCbQuery();
@@ -176,11 +186,16 @@ bot.command("stats", async (ctx) => {
   const user_id = String(ctx.from.id);
   const subject = userSubjects[user_id] || "cr";
   const { total, correct } = await getStats(user_id, subject);
-  if (total === 0)
+  console.log("[/stats 디버깅]", { total, correct });
+
+  if (!total || total === 0) {
     return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
+  }
 
   const percent = Math.round((correct / total) * 100);
-  ctx.reply(`📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`);
+  ctx.reply(
+    `📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`
+  );
 });
 
 // ✅ Netlify 서버리스 함수용 핸들러
