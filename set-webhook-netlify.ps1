@@ -14,24 +14,30 @@ function Get-EnvVar($key) {
     return ($dotenv | Where-Object { $_.Key -eq $key }).Value
 }
 
-$BOT_TOKEN = Get-EnvVar "TELEGRAM_TOKEN"
-$NGROK_URL = Get-EnvVar "NGROK_KEY"
+$BOT_TOKEN   = Get-EnvVar "TELEGRAM_TOKEN"
+$NGROK_URL   = Get-EnvVar "NGROK_KEY"
 $NETLIFY_URL = Get-EnvVar "NETLIFY_URL"
+$RENDER_URL  = Get-EnvVar "RENDER_URL"
 
 # 🔘 옵션 선택
 Write-Host "`n🌐 어떤 환경으로 Webhook을 설정할까요?"
 Write-Host "[1] 로컬 개발용 (ngrok)"
 Write-Host "[2] Netlify 배포용"
-$choice = Read-Host "선택 (1 또는 2 입력)"
+Write-Host "[3] Render 배포용"
+$choice = Read-Host "선택 (1, 2 또는 3 입력)"
 
 switch ($choice) {
     '1' {
         $WEBHOOK_URL = "$NGROK_URL/.netlify/functions/telegram"
-        $mode = "로컬"
+        $mode = "로컬 (ngrok)"
     }
     '2' {
         $WEBHOOK_URL = "https://$NETLIFY_URL/.netlify/functions/telegram"
         $mode = "Netlify"
+    }
+    '3' {
+        $WEBHOOK_URL = "https://$RENDER_URL/webhook"
+        $mode = "Render"
     }
     default {
         Write-Host "❌ 잘못된 선택입니다. 스크립트를 다시 실행해주세요." -ForegroundColor Red
