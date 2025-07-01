@@ -1,17 +1,29 @@
-// server.js
 const express = require("express");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
-const { bot } = require("./telegram"); // 📦 봇 객체를 직접 가져옴
+const { bot } = require("./telegram"); // 📦 봇 객체 import
 
-dotenv.config();
+// ✅ 루트에 있는 .env 명시적으로 로드
+dotenv.config({ path: "../.env" });
+
+// ✅ 환경변수 확인 로그
+console.log("🌍 현재 로드된 환경변수:", {
+  SUPABASE_URL: process.env.SUPABASE_URL,
+  SUPABASE_KEY: process.env.SUPABASE_KEY,
+  TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN,
+});
+
+// ✅ 환경변수 체크 경고 (선택사항)
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+  console.warn("⚠️ 환경변수(SUPABASE_URL, SUPABASE_KEY)가 비어 있습니다. .env 확인 필요");
+}
 
 const app = express();
 app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 3000;
 
-// ✅ Webhook 엔드포인트 (Render가 호출함)
+// ✅ Telegram Webhook 엔드포인트
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
@@ -19,6 +31,7 @@ app.post("/webhook", async (req, res) => {
 
     // ✅ Telegram 봇에게 이벤트 전달
     await bot.handleUpdate(body);
+
     res.status(200).send("OK");
   } catch (err) {
     console.error("❌ Webhook 처리 오류:", err.message);
