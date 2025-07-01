@@ -39,6 +39,7 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+// ✅ Render에서 외부 접근 허용 (0.0.0.0)
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 서버 실행 중 (포트 ${PORT})`);
 });

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: mBot-render-server
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    rootDir: .
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: TELEGRAM_TOKEN
+        sync: false
