@@ -1,4 +1,4 @@
-# set-webhook.ps1
+﻿# set-webhook.ps1
 Clear-Host
 
 Write-Host "📦 Telegram Webhook 설정 도구" -ForegroundColor Cyan
