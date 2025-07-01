@@ -286,3 +286,6 @@ if (IS_LOCAL) {
   bot.launch();
   console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드)");
 }
+
+// telegram.js 끝 부분
+module.exports = { bot };
