@@ -13,6 +13,14 @@ const {
   insertAnswer,
 } = require("./db");
 
+const {
+  getText,
+  getLanguage,
+  setLanguage,
+  registerLanguageHandlers,
+  getLanguageKeyboard,
+} = require("./language");
+
 const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
 // 🧠 유저별 과목 세션 저장
@@ -27,29 +35,27 @@ SUBJECT_TYPES.forEach((type) => {
   });
 });
 
+// 🌐 언어 선택 핸들러 등록
+registerLanguageHandlers(bot);
+
 // 🟢 /start
 bot.start((ctx) => {
-  ctx.reply(
-    `안녕하세요! GMAT 문제풀이 봇입니다.\n\n🧭 과목 설정:\n` +
-      `/cr, /math, /rc, /di\n\n📌 문제 명령어:\n` +
-      `/q - 다음 문제\n/q123 - 특정 문제 번호\n` +
-      `/wrong - 틀린 문제 목록\n/stats - 통계 보기\n/help - 전체 명령어`
-  );
+  const user_id = String(ctx.from.id);
+  const lang = getLanguage(user_id);
+  ctx.reply(getText("select_language", lang), getLanguageKeyboard());
 });
 
 // 🆘 /help
 bot.command("help", (ctx) => {
-  ctx.reply(
-    `📚 사용 가능한 명령어:\n` +
-      `/cr, /math, /rc, /di - 과목 선택\n` +
-      `/q - 다음 문제\n/q123 - 특정 번호 문제 보기\n` +
-      `/wrong - 내가 틀린 문제 보기\n/stats - 과목별 통계 보기`
-  );
+  const user_id = String(ctx.from.id);
+  const lang = getLanguage(user_id);
+  ctx.reply(getText("help", lang));
 });
 
 // ❓ /q 또는 /q<number>
 bot.hears(/^\/q(\d*)$/, async (ctx) => {
   const user_id = String(ctx.from.id);
+  const lang = getLanguage(user_id);
   const currentSubject = userSubjects[user_id] || "cr";
   const msg = ctx.message.text;
 
@@ -61,9 +67,7 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
   );
 
   console.log(`🧾 유저 ${user_id} 요청한 과목: ${currentSubject}`);
-  console.log(
-    `📚 총 ${questions.length}개의 ${currentSubject} 문제 중에서 선택`
-  );
+  console.log(`📚 총 ${questions.length}개의 ${currentSubject} 문제 중에서 선택`);
 
   let question;
   if (msg.length > 2) {
@@ -75,7 +79,7 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
     question = questions.find((q) => !answeredIdSet.has(q.id.toString()));
   }
 
-  if (!question) return ctx.reply("👏 해당 과목의 모든 문제를 푸셨습니다!");
+  if (!question) return ctx.reply(getText("noQuestions", lang));
 
   console.log("🆕 출제 문제:", {
     id: question.id,
@@ -103,9 +107,7 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
       .replace(/}/g, "\\}");
   }
 
-  let text = `*문제 ${question.question_number}:*\n${escapeMarkdown(
-    question.question
-  )}\n\n`;
+  let text = `*문제 ${question.question_number}:*\n${escapeMarkdown(question.question)}\n\n`;
   question.choices.forEach((c, i) => {
     text += `${String.fromCharCode(65 + i)}. ${escapeMarkdown(c.trim())}\n`;
   });
@@ -126,6 +128,7 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 // 🔘 버튼 응답 처리
 bot.on("callback_query", async (ctx) => {
   const user_id = String(ctx.from.id);
+  const lang = getLanguage(user_id);
   console.log("📩 수신된 콜백 데이터:", ctx.callbackQuery.data);
 
   if (!ctx.callbackQuery.data || ctx.callbackQuery.data.split("|").length !== 4) {
@@ -146,8 +149,6 @@ bot.on("callback_query", async (ctx) => {
   );
 
   const availableIds = questions.map((q) => q.id.toString());
-  console.log("📚 매칭 시도 중인 ID 목록:", availableIds);
-
   const q = questions.find((q) => q.id.toString() === qid);
   console.log("🔍 최종 매칭된 문제:", q || "❌ 매칭 실패");
 
@@ -172,14 +173,11 @@ bot.on("callback_query", async (ctx) => {
   const stats = await getStats(user_id, subject);
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
+  const explanation = lang === "en" ? q.explanation_en : q.explanation;
 
   await ctx.reply(
-    `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(
-      64 + selected
-    )}\n` +
-      `${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${
-        q.explanation
-      }\n\n` +
+    `📘 문제 ${q.question_number}\n당신의 선택: ${String.fromCharCode(64 + selected)}\n` +
+      `${is_correct ? "✅ 정답입니다!" : "❌ 오답입니다."}\n\n📝 해설: ${explanation}\n\n` +
       `⏱ 풀이 시간: ${mins}분 ${secs}초\n📊 현재 ${stats.total}문제 중 ${stats.correct}문제 정답`
   );
 
@@ -189,6 +187,7 @@ bot.on("callback_query", async (ctx) => {
 // ❌ /wrong
 bot.command("wrong", async (ctx) => {
   const user_id = String(ctx.from.id);
+  const lang = getLanguage(user_id);
   const subject = userSubjects[user_id] || "cr";
 
   try {
@@ -201,23 +200,24 @@ bot.command("wrong", async (ctx) => {
     }
 
     if (wrongs.length === 0) {
-      return ctx.reply("🥳 틀린 문제가 없습니다!");
+      return ctx.reply(lang === "en" ? "🥳 No wrong answers!" : "🥳 틀린 문제가 없습니다!");
     }
 
     const text =
-      `❌ [${subject.toUpperCase()}] 틀린 문제:\n` +
+      `❌ [${subject.toUpperCase()}] ${lang === "en" ? "Wrong questions:" : "틀린 문제"}\n` +
       wrongs.map((n) => `문제 ${n}`).join("\n");
 
     ctx.reply(text);
   } catch (err) {
     console.error("❌ /wrong 처리 중 오류 발생:", err);
-    ctx.reply("⚠️ 틀린 문제 명령어 처리 중 문제가 발생했습니다.");
+    ctx.reply("⚠️ 오류가 발생했습니다.");
   }
 });
 
 // 📊 /stats
 bot.command("stats", async (ctx) => {
   const user_id = String(ctx.from.id);
+  const lang = getLanguage(user_id);
   const subject = userSubjects[user_id] || "cr";
 
   try {
@@ -225,31 +225,23 @@ bot.command("stats", async (ctx) => {
     console.log("[/stats 디버깅]", stats);
 
     if (!stats || typeof stats !== "object") {
-      console.error("❌ getStats() 반환값이 객체가 아님:", stats);
       return ctx.reply("⚠️ 통계 데이터를 불러오는 데 문제가 발생했습니다.");
     }
 
     const { total, correct } = stats;
-
-    if (typeof total !== "number" || typeof correct !== "number") {
-      console.error("❌ getStats() 내 숫자값이 유효하지 않음:", {
-        total,
-        correct,
-      });
+    if (!total || typeof correct !== "number") {
       return ctx.reply("⚠️ 통계 정보가 정확하지 않습니다.");
     }
 
-    if (!total || total === 0) {
-      return ctx.reply(`[${subject.toUpperCase()}] 아직 푼 문제가 없습니다.`);
-    }
-
     const percent = Math.round((correct / total) * 100);
-    ctx.reply(
-      `📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`
-    );
+    const msg = lang === "en"
+      ? `📊 [${subject.toUpperCase()}] Accuracy: ${correct}/${total} (${percent}%)`
+      : `📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`;
+
+    ctx.reply(msg);
   } catch (err) {
     console.error("❌ /stats 처리 중 오류 발생:", err);
-    ctx.reply("⚠️ 통계 명령어 처리 중 문제가 발생했습니다.");
+    ctx.reply("⚠️ 오류가 발생했습니다.");
   }
 });
 
@@ -287,5 +279,4 @@ if (IS_LOCAL) {
   console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드)");
 }
 
-// telegram.js 끝 부분
 module.exports = { bot };
