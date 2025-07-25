@@ -131,12 +131,11 @@ bot.on("callback_query", async (ctx) => {
     return ctx.answerCbQuery("❌ 잘못된 응답 형식입니다.");
   }
 
-  const [qid, selectedStr, startStr, subject] = ctx.callbackQuery.data.split("|");
-  const selected = parseInt(selectedStr);
+  const [qid, selectedLetter, startStr, subject] = ctx.callbackQuery.data.split("|");
   const start = parseInt(startStr);
   const submitted = Date.now();
 
-  console.log("🧪 파싱된 값:", { qid, selected, start, subject });
+  console.log("🧪 파싱된 값:", { qid, selectedLetter, start, subject });
 
   const allQuestions = await getAllQuestions();
   const questions = allQuestions.filter(
