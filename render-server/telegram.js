@@ -149,16 +149,15 @@ bot.on("callback_query", async (ctx) => {
     return ctx.answerCbQuery("❌ 문제 정보를 불러올 수 없습니다.");
   }
 
-  // 숫자 선택을 문자로 변환하여 비교 (0→A, 1→B, 2→C, 3→D, 4→E)
-  const selectedLetter = String.fromCharCode(65 + selected); // 65 = 'A'
-  console.log("🔍 정답 비교:", { selected, selectedLetter, dbAnswer: q.answer, match: selectedLetter === q.answer });
+  // A~E 문자열 직접 비교 (변환 불필요!)
+  console.log("🔍 정답 비교:", { selectedLetter, dbAnswer: q.answer, match: selectedLetter === q.answer });
   const is_correct = selectedLetter === q.answer;
   const elapsed = Math.round((submitted - start) / 1000);
 
   await insertAnswer({
     user_id,
     question_id: q.id,
-    user_answer: selected,
+    user_answer: selectedLetter,  // A,B,C,D,E 직접 저장!
     is_correct,
     started_at: new Date(start).toISOString(),
     submitted_at: new Date(submitted).toISOString(),
