@@ -167,8 +167,25 @@ bot.command("stats", async (ctx) => {
   ctx.reply(`📊 [${subject.toUpperCase()}] 정답률: ${correct}/${total} (${percent}%)`);
 });
 
-// ✅ 로컬 실행 확인 로그
-bot.launch().then(() => {
-  console.log("🚀 Local Telegram Bot started");
-  console.log("✅ SUPABASE_URL =", process.env.SUPABASE_URL);
-});
+// ✅ 로컬 실행 확인 로그 (webhook 삭제 후 시작)
+bot.telegram.deleteWebhook()
+  .then(() => {
+    console.log("✅ Webhook 삭제 완료");
+    return bot.launch();
+  })
+  .then(() => {
+    console.log("🚀 Local Telegram Bot started");
+    console.log("✅ SUPABASE_URL =", process.env.SUPABASE_URL);
+  })
+  .catch((error) => {
+    console.log("⚠️ 봇 시작 중 오류:", error.message);
+    // webhook 삭제 실패해도 봇 시작 시도
+    bot.launch()
+      .then(() => {
+        console.log("🚀 Local Telegram Bot started - Webhook 삭제 실패했지만 시작됨");
+        console.log("✅ SUPABASE_URL =", process.env.SUPABASE_URL);
+      })
+      .catch((launchError) => {
+        console.error("❌ 봇 시작 실패:", launchError.message);
+      });
+  });

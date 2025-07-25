@@ -279,8 +279,26 @@ const IS_NETLIFY = !!process.env.NETLIFY || !!process.env.NETLIFY_DEV;
 const IS_LOCAL = !IS_NETLIFY;
 
 if (IS_LOCAL) {
-  bot.launch();
-  console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드)");
+  // 봇 시작 전 webhook 삭제 (충돌 방지)
+  bot.telegram.deleteWebhook()
+    .then(() => {
+      console.log("✅ Webhook 삭제 완료");
+      return bot.launch();
+    })
+    .then(() => {
+      console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드)");
+    })
+    .catch((error) => {
+      console.log("⚠️ 봇 시작 중 오류:", error.message);
+      // webhook 삭제 실패해도 봇 시작 시도
+      bot.launch()
+        .then(() => {
+          console.log("🤖 Telegraf 봇 로컬 실행 중 (Polling 모드) - Webhook 삭제 실패했지만 시작됨");
+        })
+        .catch((launchError) => {
+          console.error("❌ 봇 시작 실패:", launchError.message);
+        });
+    });
 }
 
 module.exports = { bot };

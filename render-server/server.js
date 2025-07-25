@@ -2,6 +2,9 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const { bot } = require("./telegram"); // 📦 봇 객체 import
+const { Telegraf } = require('telegraf');
+const db = require('./db');
+const telegramHandler = require('./telegram');
 
 // ✅ 루트에 있는 .env 명시적으로 로드
 dotenv.config({ path: "../.env" });
@@ -43,3 +46,14 @@ app.post("/webhook", async (req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 서버 실행 중 (포트 ${PORT})`);
 });
+
+// 봇 시작 전 webhook 삭제 (충돌 방지)
+async function clearWebhookBeforeStart() {
+    try {
+        console.log('🗑️ Webhook 정리 중...');
+        await bot.telegram.deleteWebhook();
+        console.log('✅ Webhook 삭제 완료');
+    } catch (error) {
+        console.log('⚠️ Webhook 삭제 중 오류 (무시 가능):', error.message);
+    }
+}
