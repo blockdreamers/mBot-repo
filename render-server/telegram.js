@@ -108,9 +108,10 @@ bot.hears(/^\/q(\d*)$/, async (ctx) => {
 
   const timestamp = Date.now();
   const buttons = question.choices.map((_, i) => {
-    const payload = `${question.id}|${i + 1}|${timestamp}|${currentSubject}`;
-    console.log(`📤 버튼 생성 → ${String.fromCharCode(65 + i)} = ${payload}`);
-    return Markup.button.callback(String.fromCharCode(65 + i), payload);
+    const letter = String.fromCharCode(65 + i); // A, B, C, D, E
+    const payload = `${question.id}|${letter}|${timestamp}|${currentSubject}`;
+    console.log(`📤 버튼 생성 → ${letter} = ${payload}`);
+    return Markup.button.callback(letter, payload);
   });
 
   await ctx.reply(text, {
