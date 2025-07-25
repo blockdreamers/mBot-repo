@@ -149,7 +149,10 @@ bot.on("callback_query", async (ctx) => {
     return ctx.answerCbQuery("❌ 문제 정보를 불러올 수 없습니다.");
   }
 
-  const is_correct = selected === q.answer;
+  // 숫자 선택을 문자로 변환하여 비교 (0→A, 1→B, 2→C, 3→D, 4→E)
+  const selectedLetter = String.fromCharCode(65 + selected); // 65 = 'A'
+  console.log("🔍 정답 비교:", { selected, selectedLetter, dbAnswer: q.answer, match: selectedLetter === q.answer });
+  const is_correct = selectedLetter === q.answer;
   const elapsed = Math.round((submitted - start) / 1000);
 
   await insertAnswer({
@@ -178,8 +181,9 @@ bot.on("callback_query", async (ctx) => {
 
   await ctx.reply(
     `📘 ${lang === "en" ? "Question" : "문제"} ${q.question_number}\n` +
-      `${resultText.your_choice}: ${String.fromCharCode(64 + selected)}\n` +
-      `${is_correct ? resultText.correct : resultText.wrong}\n\n` +
+      `${resultText.your_choice}: ${selectedLetter}\n` +
+      `${is_correct ? resultText.correct : resultText.wrong}\n` +
+      `정답 : ${q.answer}\n\n` +
       `${resultText.explanation}: ${explanation}\n\n` +
       `${resultText.time(mins, secs)}\n${resultText.stats(stats.correct, stats.total)}`
   );

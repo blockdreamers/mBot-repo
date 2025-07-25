@@ -1,4 +1,8 @@
-# Question Bank Files (CR 문제 데이터)
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+def create_gitignore():
+    gitignore_content = """# Question Bank Files (CR 문제 데이터)
 questionbank/
 
 # Environment Variables
@@ -94,3 +98,25 @@ desktop.ini
 
 # Serverless directories
 .serverless/
+"""
+
+    try:
+        with open('.gitignore', 'w', encoding='utf-8') as f:
+            f.write(gitignore_content)
+        print("✅ .gitignore 파일이 성공적으로 생성되었습니다!")
+        
+        # 내용 확인
+        print("\n📋 생성된 .gitignore 내용:")
+        with open('.gitignore', 'r', encoding='utf-8') as f:
+            content = f.read()
+            lines = content.split('\n')
+            for i, line in enumerate(lines[:20], 1):  # 처음 20줄만 표시
+                print(f"{i:2d}: {line}")
+            if len(lines) > 20:
+                print(f"... (총 {len(lines)}줄)")
+                
+    except Exception as e:
+        print(f"❌ 오류 발생: {e}")
+
+if __name__ == "__main__":
+    create_gitignore() 
