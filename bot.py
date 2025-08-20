@@ -93,6 +93,7 @@ def send_question(update: Update, context: CallbackContext) -> None:
 
         choices = question["choices"]
         for i, choice in enumerate(choices):
+            # DB에는 순수한 텍스트만 저장되어 있으므로 A. B. 등을 붙여줌
             text += f"{chr(65+i)}. {choice.strip()}\n"
 
         keyboard = [[InlineKeyboardButton(f"{chr(65+i)}", callback_data=str(i+1)) for i in range(5)]]
